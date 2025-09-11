@@ -2,8 +2,6 @@
 
 ## Decision points
 
-- I propose that we use `reviews` as the name for an event in which an agreement adds a rating, a comment (optional) and any number of quick comments (optional) to a recipe. i.e: Have a `dim_recipes_reviews` table with data on ratings and comments. 
-
 - We can have either 1 `dim_reviews` containing both comments & ratings. Or two separate tables. I like option 1 for the sake of keeping the schema simple.
 
 - Do we want to support anonymous comments? If so, we need to use the native `pim.dbo.recipes_rating.recipe_rating_id` instead of `concat(billing_agreement_id,recipe_id)`. 
