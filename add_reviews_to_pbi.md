@@ -7,9 +7,9 @@
 2. Do we want to support anonymous comments? If so, we need to use the native `pim.dbo.recipes_rating.recipe_rating_id` instead of `concat(billing_agreement_id,recipe_id)`.
 
 3. Supporting anonymous comments also require either of:
-    a. Having `fk_dim_recipe` in `dim_recipe_reviews` (easiest, but dim-dim joins go against star schema conventions).
-    b. Having rows in `fact_orders` for review events (too big of a concept change IMO).
-    c. Having a different table for anonymous reviews (simple, but makes it hard to see all reviews for one recipe).
+    1. Having `fk_dim_recipe` in `dim_recipe_reviews` (easiest, but dim-dim joins go against star schema conventions).
+    2. Having rows in `fact_orders` for review events (too big of a concept change IMO).
+    3. Having a different table for anonymous reviews (simple, but makes it hard to see all reviews for one recipe).
 
 4. Do we keep duplicates columns in `fact_orders` and `dim_recipe_reviews`? (e.g: `recipe_rating`.) This might cause confusion if we decide to support anonymous reviews without adding them as rows in `fact_orders`. Average rating from `fact_orders` wouldn't match average rating from `dim_recipe_reviews` which would contain anonymous reviews.
 
