@@ -2,7 +2,7 @@
 
 ## Decision points
 
-- We can have either 1 `dim_reviews` containing both comments & ratings. Or two separate tables. I like option 1 for the sake of keeping the schema simple.
+- We can have either 1 `dim_recipe_reviews` containing both comments & ratings. Or two separate tables. I like option 1 for the sake of keeping the schema simple.
 
 - Do we want to support anonymous comments? If so, we need to use the native `pim.dbo.recipes_rating.recipe_rating_id` instead of `concat(billing_agreement_id,recipe_id)`. 
 
@@ -13,13 +13,13 @@
 ```mermaid
 erDiagram
 direction TB
-FACT_ORDERS ||--o| DIM_RECIPES_REVIEWS: has
+FACT_ORDERS ||--o| dim_recipe_reviews: has
 FACT_ORDERS ||--o{ BRIDGE_RECIPES_QUICK_COMMENTS: has
 BRIDGE_RECIPES_QUICK_COMMENTS }|--|| DIM_QUICK_COMMENTS: has
 
 
 FACT_ORDERS {
-    string fk_dim_recipes_reviews FK "added (hash of recipe_rating_id)"
+    string fk_dim_recipe_reviews FK "added (hash of recipe_rating_id)"
     string fk_bridge_recipes_quick_comments FK "added (hash of recipe_rating_id for quick comments only)"
     string recipe_rating_id "switch to native recipe_rating_id"
     string recipe_comment_id "remove, redundant with recipe_rating_id"
@@ -27,8 +27,8 @@ FACT_ORDERS {
     int recipe_rating_score "remove?"
     string recipe_comment "remove"
 }
-DIM_RECIPES_REVIEWS {
-    string pk_dim_recipes_reviews PK
+DIM_RECIPE_REVIEWS {
+    string pk_dim_recipe_reviews PK
     string fk_dim_recipes FK "required to support anonymous reviews"
     date recipe_review_created
     timestamp recipe_review_created_at
@@ -41,7 +41,7 @@ DIM_RECIPES_REVIEWS {
     bool is_quick_comment_combination
     bool is_anonymous_review
 }
-BRIDGE_RECIPES_QUICK_COMMENTS {
+BRIDGE_RECIPE_QUICK_COMMENTS {
     string pk_bridge_quick_comments PK
     string fk_dim_quick_comments FK
 }
