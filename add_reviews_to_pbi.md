@@ -32,7 +32,7 @@ FACT_ORDERS {
     string recipe_comment_id "remove?"
     int recipe_rating "remove?"
     int recipe_rating_score "remove?"
-    string recipe_comment "remove"
+    string recipe_comment "remove?"
 }
 DIM_RECIPE_REVIEWS {
     string pk_dim_recipe_reviews PK
@@ -40,7 +40,7 @@ DIM_RECIPE_REVIEWS {
     date recipe_review_created
     timestamp recipe_review_created_at
     string recipe_rating_id
-    string recipe_comment_id "remove, redundant with recipe_rating_id"
+    string recipe_comment_id "remove? Redundant with recipe_rating_id"
     int recipe_rating
     int recipe_rating_score
     string recipe_comment
