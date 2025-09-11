@@ -36,7 +36,7 @@ FACT_ORDERS {
 }
 DIM_RECIPE_REVIEWS {
     string pk_dim_recipe_reviews PK
-    string fk_dim_recipes FK "required to support anonymous reviews"
+    string fk_dim_recipes FK "optional support for anonymous reviews"
     date recipe_review_created
     timestamp recipe_review_created_at
     string recipe_rating_id
