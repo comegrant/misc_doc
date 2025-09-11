@@ -8,6 +8,8 @@
 
 - Do we keep duplicates columns in `fact_orders` and `dim_recipe_reviews` (e.g: `recipe_rating`)? This might cause confusion if we decide to support anonymous reviews. Since ratings & comments without an `agreement_billing_id` cannot be in `fact_orders`.
 
+- We can either include `quick_comment_combination` in the regular `recipe_comment` column along with a boolean flag `is_quick_comment` or keep them in separate columns. I like the former since it would be easier for an end user in PBI to filter out quick comments than to coalesce regular comments and quick comments.
+
 ## Proposed schema:
 
 ```mermaid
@@ -36,10 +38,13 @@ DIM_RECIPE_REVIEWS {
     string recipe_comment_id "remove, redundant with recipe_rating_id"
     int recipe_rating
     int recipe_rating_score
-    string recipe_comment "english or local by default?"
-    string recipe_quick_comment_combination_translated "necessary?"
-    bool is_quick_comment_combination
+    string recipe_comment
+    string all_quick_comments_local
+    string all_quick_comments_english
+    int number_of_quick_comments
+    bool is_quick_comments
     bool is_anonymous_review
+    bool is_not_cooked_dish
 }
 BRIDGE_RECIPE_QUICK_COMMENTS {
     string pk_bridge_quick_comments PK
