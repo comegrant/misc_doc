@@ -29,7 +29,7 @@ FACT_ORDERS {
     string fk_dim_recipe_reviews FK "added (hash of recipe_rating_id)"
     string fk_bridge_recipes_quick_comments FK "added (hash of recipe_rating_id for quick comments only)"
     string recipe_rating_id "switch to native recipe_rating_id"
-    string recipe_comment_id "remove? redundant with recipe_rating_id"
+    string recipe_comment_id "remove?"
     int recipe_rating "remove?"
     int recipe_rating_score "remove?"
     string recipe_comment "remove"
