@@ -4,7 +4,7 @@
 
 1. We can have either 1 `dim_recipe_reviews` containing both comments & ratings. Or two separate tables. I like option 1 for the sake of keeping the schema simple.
 
-2. Do we want to support anonymous comments? If so, we need to use the native `pim.dbo.recipes_rating.recipe_rating_id` instead of `concat(billing_agreement_id,recipe_id)`. This requires rerunning `fact_orders` but it might be the better long-term solution. We can also keep the composite key but use the native `recipe_rating_id` for anonymous comments which avoid a re-run but it more convoluted.
+2. Do we want to support anonymous comments? If so, we need to use the native `pim.dbo.recipes_rating.recipe_rating_id` instead of `concat(billing_agreement_id,recipe_id)`. This requires rerunning `fact_orders` but it might be the better long-term solution. We can also keep the composite key but use the native `recipe_rating_id` for anonymous comments, which avoid a re-run but it more convoluted.
 
 3. Supporting anonymous comments also require either of:
     1. Having `fk_dim_recipe` in `dim_recipe_reviews` (easiest, but dim-dim joins go against star schema conventions).
