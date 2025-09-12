@@ -63,5 +63,6 @@ DIM_QUICK_COMMENTS {
     string quick_comment_language_name
     string quick_comment_text_local
     string quick_comment_text_english
+    int number_of_stars
 }
 ```
