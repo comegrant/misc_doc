@@ -21,7 +21,7 @@
 erDiagram
 direction TB
 FACT_ORDERS ||--o| DIM_RECIPE_REVIEWS: can_have
-FACT_ORDERS ||--o{ BRIDGE_RECIPE_QUICK_COMMENTS: can_have
+DIM_RECIPE_REVIEWS ||--o{ BRIDGE_RECIPE_QUICK_COMMENTS: can_have
 BRIDGE_RECIPE_QUICK_COMMENTS }|--|| DIM_QUICK_COMMENTS: has_many
 
 
@@ -51,7 +51,7 @@ DIM_RECIPE_REVIEWS {
     bool is_anonymous_review
     bool is_not_cooked_dish
 }
-BRIDGE_RECIPE_QUICK_COMMENTS {
+BRIDGE_RECIPE_REVIEWS_QUICK_COMMENTS {
     string pk_bridge_quick_comments PK
     string fk_dim_quick_comments FK
 }
