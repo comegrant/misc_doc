@@ -21,14 +21,13 @@
 erDiagram
 direction TB
 FACT_ORDERS ||--o| DIM_RECIPE_REVIEWS: can_have
-FACT_ORDERS ||--o{ BRIDGE_RECIPE_QUICK_COMMENTS: can_have
-BRIDGE_RECIPE_QUICK_COMMENTS }|--|| DIM_QUICK_COMMENTS: has_many
+DIM_RECIPE_REVIEWS ||--o{ BRIDGE_RECIPE_REVIEWS_QUICK_COMMENTS: can_have
+BRIDGE_RECIPE_REVIEWS_QUICK_COMMENTS }|--|| DIM_QUICK_COMMENTS: has_many
 
 
 FACT_ORDERS {
     string fk_dim_recipe_reviews FK "added (hash of recipe_rating_id)"
     string fk_bridge_recipes_quick_comments FK "added (hash of recipe_rating_id for quick comments only)"
-    string recipe_rating_id "switch to native recipe_rating_id"
     string recipe_comment_id "remove?"
     int recipe_rating "remove?"
     int recipe_rating_score "remove?"
@@ -39,7 +38,6 @@ DIM_RECIPE_REVIEWS {
     string fk_dim_recipes FK "optional support for anonymous reviews"
     date recipe_review_created
     timestamp recipe_review_created_at
-    string recipe_rating_id
     string recipe_comment_id "remove? Redundant with recipe_rating_id"
     int recipe_rating
     int recipe_rating_score
@@ -51,7 +49,7 @@ DIM_RECIPE_REVIEWS {
     bool is_anonymous_review
     bool is_not_cooked_dish
 }
-BRIDGE_RECIPE_QUICK_COMMENTS {
+BRIDGE_RECIPE_REVIEWS_QUICK_COMMENTS {
     string pk_bridge_quick_comments PK
     string fk_dim_quick_comments FK
 }
