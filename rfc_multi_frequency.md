@@ -1,3 +1,9 @@
+# Intro
+This a write-up on the different ways we could support multi-frequency ingestion. The best way to do so IMO is to change our existing ingestion, dbt & Power BI setup to support multi-frequency, so I've included a write up on how that could be done as well.
+
+**Decision points / feedback requests:**
+- Opinions on the 
+
 
 # Requirements
 Several of this cook's objectives require changes to our ingestion setup. I think those can be solved in the same redesign. 
@@ -231,6 +237,7 @@ These parameters are provided by the different jobs calling this notebook and ca
 ### Several Jobs
 Several jobs call the ingest notebook. We need (at leat) one job per frequency. Each of those jobs will have its own CRON schedule and pass a "frequency" parameter that the notebook uses to filter the .yml configs.
 It's possible to have different jobs for different servers or types of ingestion. But I think this is simpler.
+We can easily run ingestion for different source or different strategies concurrently by just calling our one ingestion notebook in different tasks with different parameters. The only downside in terms of performance compared to a several notebook approach is that the 
 
 ```yaml
  timeout_seconds: 3600
