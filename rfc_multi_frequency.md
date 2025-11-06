@@ -20,7 +20,7 @@ Currently the ingestion logic is tied to each data source. We have different loa
 Real-time data processing (streaming) is very different from the batch processing that we are used to. While it may be worth looking into it in the future, I would suggest that we keep it out of scope for now and focus on high-frequency batching. The maximum frequency we can reach is still TBD, I would say that 2 minutes is very ambitious, 5 minutes is doable and 10 minutes is fairly easy. But how much work it will take to reach higher frequencies will vary wildly dependending on which dbt model we are talking about.
 
 2. **Ad-hocs:**
-We want to keep a solution for ad-hocs reports fetching data straight from the replica. Whether we do it in Metabase or we publish a live connection to the Replica in PowerBI. The process of ingesting, processing and refreshing data at high-frequency requires some work and we should only do it when there is significant upside. Meaning cases where we need to do significant processing or combine with other data available only in NDP.
+We want to keep a solution for ad-hocs reports fetching data straight from the replica. Whether we do it in Metabase or we publish a live connection to the Replica in PowerBI. The process of ingesting, processing and refreshing data at high-frequency requires some work and we should only do it when there is significant upside. Meaning cases where we need to do a lot of processing or combine with other data available only in NDP.
 
 
 # Use cases
