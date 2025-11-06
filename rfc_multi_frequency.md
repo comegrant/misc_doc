@@ -22,6 +22,7 @@ We want to keep a solution for ad-hocs reports fetching data straight from the r
 
 ## Proposed changes to ingestion:
 Let's start by looking at changes to the ingestion this is the natural first step and the design is more straightforward than the dbt or PowerBI parts IMO.
+I think these changes are worth doing even if we do not commit to setting up dbt and Power BI for multi-frequency. It's going to allow the ingestion codebase to scale better as we add more sources and ingestion strategies.
 
 
 ### Server Config
