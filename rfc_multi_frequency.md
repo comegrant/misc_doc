@@ -20,6 +20,35 @@ Real-time data processing (streaming) is very different from the batch processin
 We want to keep a solution for ad-hocs reports fetching data straight from the replica. Whether we do it in Metabase or we publish a live connection to the Replica in PowerBI. The process of ingesting, processing and refreshing data at high-frequency requires a significant amount of work and we should only do it when there is significant upside. Meaning cases where we need to do significant processing or combine with other data available only in NDP.
 
 
+# Use cases
+- **Basket deviations:** Currently ingested & processed every other hour. Would like to move to CDC so history can be deleted from the source without risk of data loss. 
+- **Claims:** Daniel mentionned claims as a good example of an area which could benefit from faster data AND cannot be easily solved in Metabase due to requiring data in Databricks.
+- **Frontend events and comms:** Both mentionned as use cases where fresh data is desirable. Events are ingested from segments and increasing ingestion frequency does not require work on our ingestion codebase.
+- **Customer traits:** Grant scoped a number of tables that would need to be refreshed more frequently to move customer traits and customerio sync from ADB to NDP.
+- **CDC Support:** Would be nice to implement CDC support as a generic strategy without tying it to a specific datasource.
+- **Adding CMS QA:** Would be nice to add CMS QA as a source without requiring implementation of all ingestion strategies specifically for that source.
+
+
+# Possible solutions:
+1. **Live connection between Power BI and the replica:** This is fairly easy to implement. But it has the same limitations as Metabase. It doesn't allow us to do complex processing or join data between the Replica and Databricks. IMO, this is more about moving away from Metabase than it is about supporting multi-frequency processing, which is a different objective.
+2. **Use Lakehouse federation and a live connection between Databricks and PowerBI:** This is a strict improvement on the solution above, since data will be available in Databricks. And could be processed in dbt using views or materialized views. Materialized views will generally result in better performance in Power BI but they can be unpredictable. Having different semantic models in PBI will make it harder to manage dependencies and maintain consistency between live and batch reports. It will also take effort to avoid duplication of logic between live views and batched models in dbt. Overall, this is a valid solution, but it splits our current dbt and PowerBI stack, which might be difficult to manage in the long run. 
+3. **Custom views directly on bronze and silver models:** This still requires supporting multi-frequency ingestion. Otherwise, the pros and cons are largely the same as the option above. This would be lower frequency than a direct connection to the replica but it's likely to offer better performance in reports and it keeps the load on the replica predictible.
+4. **Run the main data model every 2nd hour:** I think this is generally worse than proper support for multi-frequency. The two hour schedule will be wasteful for models that can be refreshed daily and too slow for data which requires high frequency. I also don't think it's that much easier to implement than true multi-frequency since we will have to optimize the entire ingestion and dbt project to run every 2 hours instead of being able to focus only on the data where high-frequency is valuable.
+5. **Use event data:** The Segment-Databricks connector supports hourly sync at most which is a limitation of this approach. We could get data from Segment in real time but that most likely require deploying Kafka or buying it as a SaaS. Getting real-time event data might be worth pursuing but I think that should be its own objective. For the specific purpose of increasing the frequency at which we can run the preselector, I think this is too ad-hoc.
+6. **Multi frequency support for ingestion, dbt and PBI:** This option is the most consistent with our current way of working and generally strikes a good balance between enabling high-frequency data while preserving the flexibility that comes with batch processing. This give us the freedom to either increase the speed at which we run an existing dbt model, or create new ones when high-frequency needs are highly specific and increasing the frequency of an existing model is too hard / not worth it.
+
+I like option 6 the best. It's consistent with our current approach and offers the best balance between high-frequency. I also think it's the least complicated option in the long run. We will have to be a bit more intentional about how we write and materialize dbt models. But the increased complexity of ingestion, dbt scheduling and Power BI is not something that we will have to deal with on a daily basis. Once the initial setup is done, the frequency of different ingestion/dbt runs/pbi refresh can be controlled exclusively by modifying yaml configs. Whereas having separate dbt models and semantic models for different frequency needs will make it harder to manage dependencies and maintain one source of truth on daily basis.
+
+I think the best way forward is:
+1. **Support multi-frequency ingestion.** This is most likely doable and worth doing.
+2. **Support multi-frequency in dbt.**
+  1. Start by trying to run existing models faster by making them incremental and having multi-frequency scheduling.
+  2. If too hard or two slow, create separate models to solve high-frequency use cases, relying mostly on views, materialized views and streaming tables.
+3. **Support multi-frequency in PBI:**
+  1. Start by trying to refresh existing tables incrementally and at different schedules.
+  2. If too hard or too slow, create separate models 
+
+
 ## Proposed changes to ingestion:
 Let's start by looking at changes to the ingestion this is the natural first step and the design is more straightforward than the dbt or PowerBI parts IMO.
 I think these changes are worth doing even if we do not commit to setting up dbt and Power BI for multi-frequency. It's going to allow the ingestion codebase to scale better as we add more sources and ingestion strategies.
@@ -235,7 +264,24 @@ Some areas of improvements that aren't discussed here:
 
 ## Proposed changes to dbt:
 
+### Materialization strategy 
+There are different ways to achieve low-frequency in dbt. They can be split into two groups depending on whether or not they require manual orchestration.
+
+**No Orchestration:** These materializations keep themselves up-to-date automatically once created. No need to run them every time.
+1. **Views:** The most straightforward. Downside is that they can result in poor performance for models that contain expensive operations and are called in different places. Bu performance or views is usually better than you would expect because they benefit from several caching mechanisms. This is a good choice for simple operations, like most of our silver models which only select, rename and format columns.
+2. **Materialized Views:** Usually a good middle-ground between views and tables. You just define it like a view with a refresh schedule and Databricks will take care of keeping it up-to-date. Databricks will try to refresh a materialized view incrementally by default. The upside is that you don't need to write incremental logic or a custom scheduling job. The downside is that you have less control over the incremental logic. I haven't worked with MVs in databricks. So there may be unknown unknowns making them a bad choice for us.
+3. **Streaming Tables:** The most limited option. These guarantee real-time processing and only-once processing of every row. BUT they only support append-only and joins to static tables. I don't know if we have enough use cases to make it worth it to implement those.
+
+**Orchestration:** These actually require us to run dbt on the schedule we want them to be refreshed at.
+1. **Tables:** We can full run a dbt model every time, but that option should be reserved for really small models which run fast enough that they aren't worth making incremental.
+2. **Incremental Models:** The most flexible and familiar option. But also the one requiring the most work. Since you need to manually write the incremental logic.
+2. **Microbatch Incremental Model:** A type of incremental model that uses a datetime column instead of a primary key or custom incremental logic. These could be useful for append-only time series data like most of our fact tables. They are easier to configure than regular incremental models and allows concurrent processing of different batches (e.g: a microbatch incremental model that runs every 5 minutes could run 5 1-minute batch concurrently). 
+
+All of these strategies have their uses. The question is mostly whether we want to use the same strategy for everything for the sake of simplicity. Or develop guidelines and implementations of different strategies so we can always pick the best / easiest one. If we have to pick only one, it should probably be regular incremental models, as that's the most flexible option, but it's also the hardest to implement. 
+
+
 ### Tag-based scheduling
+This is only relevant for materialization that do require orchestration.
 The setup is similar to how we handle frequency in the ingestion. We add a frequency tag in the models.yml.
 The name of the tags should be kept consistent between dbt & the ingestion.
 Note that we do not need to tag every models, untagged models will be run daily, as that's our default speed.
@@ -273,27 +319,14 @@ The orchestration of the different frequency job is more complicated with dbt th
 
 My favorite way to handle this is to sidestep the problem altogether by having **every job run dbt models with the same or higher frequency**. For example, if we have an hourly and a daily job, the hourly job would run hourly models every hour and the daily job would then run the daily & hourly models. This means that the hourly job would actually run 25 times per day.
 
-This not the most efficient solution in terms of compute. But it makes life way easier. The waste caused by unnecessarily running models should be compensated by the fact that any model that we run on a high frequency should be either a strictly idempotent incremental model (meaning the extra run doesn't process any data) or fast enough that the wasted compute is negligible. 
+This not the most efficient solution in terms of compute. But it makes life way easier. The waste caused by unnecessarily running models should be compensated by the fact that any model that we run on a high frequency should be either a strictly idempotent incremental model (meaning the extra run doesn't process any data) or fast enough that the wasted compute is negligible.
 
+Another easy option is to run the hourly model every hour except at 5 AM when the daily run will run the hourly models instead. This avoids redundant runs while still being pretty easy to implement in a CRON schedule. 
 
-### Making dbt run faster
-If we want to run a dbt model on a high frequency, performance becomes much more important. Different strategies are possible to achieve low-frequency in dbt. We can use incremental models, microbatch incremental models, materialized views, views etc.
-I think our go-to options should be incremental models, as they are the most straightforward and flexible. Although microbatch incremental models could be worth looking into for time series data (mostly fact tables and their upstream dependencies).
-
-The biggest advantage of microbatch incremental models is that you can run several batches in parrallel. So if we wanted to run a fact table every 5 minutes, we could process 5 1-minute batches concurrently. But I have never used it in the past so I can't say whether it will work for us. 
-
-In any case, we will need to update our documentation and conventions to go more in-depth about how we work with incremental models.
-
-The hard part about making a dbt model run at a high frequency will be figuring out which of its upstream models need to run at the same frequency and updating those as well. This can be difficult when it comes to fact tables which are usually at the very end of the lineage with a lot of upstream models.
-
-Two ways we could solve this if it ever comes up:
-1. Process the data twice at different frequency. If we need a report built on top of a fact table refreshed every 5 minutes but getting the entire fact table to run that fast is difficult, we can always create a second high-frequency model that is a subset of that fact table with less join to dimensions etc.
-2. Delta Views. This involves two components: A view that contains the transformation logic and an historical table. The historical table runs on a daily basis as an incremental model that uses the view as a source. You can then serve the end-user a view that unions of the historical table and the view filtered on data for the current day. I do not love this option, but it is an option.
-
+I think that any sensor, trigger or event based strategy is too complicated and not worth it. Simply running models on an offset is not reliable enough IMO.
 
 
 ## Proposed changes to PowerBI:
-
 Very much the same thinking as for dbt & the ingestion. We need incremental refresh policies on tables which are large or run frequently. And we need several jobs refreshing different Power BI tables at different frequencies. We already have code for adding incremental refresh policies to Power BI tables and refreshing selected tables. So this all should be manageable.
 
 If this is too complicated or too slow. We can always publish new, smaller, direct query semantic models for the data that needs to be refreshed often. The downside of this approach is that more semantic models means more dependencies and we might have to update several models for one dbt change.
