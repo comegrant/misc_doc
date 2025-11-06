@@ -331,6 +331,8 @@ I think that any sensor, trigger or event based strategy is too complicated and 
 
 
 ## Proposed changes to PowerBI:
-Very much the same thinking as for dbt & the ingestion. We need incremental refresh policies on tables which are large or run frequently. And we need several jobs refreshing different Power BI tables at different frequencies. We already have code for adding incremental refresh policies to Power BI tables and refreshing selected tables. So this all should be manageable.
+Very much the same thinking as for dbt & the ingestion. We need incremental refresh policies on tables which are large or run frequently. And we need several jobs refreshing different Power BI tables at different frequencies. We already have code for adding incremental refresh policies to Power BI tables and refreshing selected tables. So this all should be manageable. We could consider reusing the dbt config instead of having a dedicated config for Power BI. So every table in PBI is refreshed at the same frequency as its dbt source. 
+
+The biggest limitation is that deploying changes to main data model in PBI will trigger a full refresh. So we will have to deploy outside of work hours if we do not want to interrupt the refresh of high-frequency data.
 
 If this is too complicated or too slow. We can always publish new, smaller, direct query semantic models for the data that needs to be refreshed often. The downside of this approach is that more semantic models means more dependencies and we might have to update several models for one dbt change.
