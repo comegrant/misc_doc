@@ -1,9 +1,6 @@
 # Intro
 This a write-up on the different ways we could support multi-frequency ingestion. The best way to do so IMO is to change our existing ingestion, dbt & Power BI setup to support multi-frequency, so I've included a write up on how that could be done as well.
-
-**Decision points / feedback requests:**
-- Opinions on the 
-
+**Feedback appreciated!**
 
 # Requirements
 Several of this cook's objectives require changes to our ingestion setup. I think those can be solved in the same redesign. 
