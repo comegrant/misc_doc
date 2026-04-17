@@ -530,4 +530,4 @@ tasks:
 There are still some decisions worth pointing out:
 - **Most jobs use a serverless cluster** instead of creating a new job cluster. It takes 5 minutes to provision a new job cluster, which is a lot of wasted time for the higher frequency. I kept the 2_hours job on a job cluster because I wasn't sure how serverless would impact the preselector stuff.
 - **The intra-day jobs are scheduled to not run while the daily job is running.** The daily job will run everything regardless of frequency tags without locks. This is mostly because the multi-frequency setup is kinda experimental and I don't want it to impact the regular daily job.
-- **The intra-day jobs are started at a small stagger.** This is just a easy way to reduce the likelyhood of concurrency issues. 
+- **The intra-day jobs are started at a small stagger.** This is just a easy way to reduce the likelyhood of concurrency issues.

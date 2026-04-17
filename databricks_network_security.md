@@ -41,7 +41,7 @@ For Github actions, we could [run Github runners in our VNet](https://docs.githu
 
 ## Concrete Plan
 
-I think we should go for Option 1. Using private endpoints seems to require more infrastructure for a marginal security improvement. Turning on the actual IP whitelist can be done as the last step to minimize disruption.
+I think we should go for Option 1. Using private endpoints seems to require more infrastructure for a marginal security improvement. Turning on the actual IP whitelist can be done as the last step to minimize disruptions.
 
 
 1. Deploy the on-prem data gateway for Power BI on an Azure VM. (Tackling this one first because I think it's where we're the most likely to run into issues)
