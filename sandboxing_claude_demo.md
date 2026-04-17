@@ -102,7 +102,6 @@ This talk focuses on user-level settings in `~/.claude/settings.json` and `~/.cl
     -> What Claude can actually do on remote services (TODO: rephrase)
 - Prompt injection
     -> Where Claude can receive data from
-    -> Ingress control is slightly impractical, you want to connect Claude to stuff (Medium, Slack, Linear, Github etc.)
 - Data exfiltration
     -> Where Claude can send data to
     -> what secrets and credentials Claude has access to.
@@ -159,7 +158,7 @@ As an alternative:
 - Use the `"env"` block in your config. This passes environment variables specific to Claude Code.
 - Almost all CLI tools use CLI flags > env vars > config files.
 - So in this example, Claude uses the Databricks CLI with his specific env var, while my terminal uses the settings in `"/Users/come.grant/.databrickscfg"`
-Note: Put secrets `settings.local.json` which is git ignored by default. Can use project-level settings here.
+Note: Put secrets `settings.local.json` which is git ignored by default. Can use project-level settings if the tools are project-specific.
 ```json
 "env": {
     "DATABRICKS_HOST": "https://xxxxxxxx.azuredatabricks.net",
@@ -222,24 +221,14 @@ Tell Claude to avoid command patterns that always trigger a permission check, ev
 
 
 
-## Auto mode (VERIFY)
-What stays enforced in auto mode
+## Auto mode
+New feature, haven't tried it yet.
+Idk how it compares to autoAllowBash
 
-- Sandbox: filesystem and network restrictions remain active at the OS
-level. Your read/write deny lists and allowed network hosts are not
-bypassed.
-- Deny rules: any explicitly denied tools or bash commands in your
-settings are always respected, regardless of mode.
-- Narrow allow rules: specific allowlist entries like Bash(npm test) carry
-over into auto mode.
+## Example config:
+You'll have to customize this, but here's an example config just to show what goes where.
 
-TODO: What's the rec between autoAllowBashIfSandboxed and Auto mode?
--> Default to autoAllowBash, maybe try turning on auto mode selectively
-
-## Example config: everything in one place
-Here's roughly what all of this looks like together. Two files: shareable config on the left, secrets on the right.
-
-`~/.claude/settings.json` (shareable):
+`~/.claude/settings.json`:
 ```json
 {
   "permissions": {
@@ -300,9 +289,8 @@ Here's roughly what all of this looks like together. Two files: shareable config
 }
 ```
 
-Quick map of where each idea from this talk lives:
 - `permissions.allow` / `permissions.deny`: allow & deny lists
-- `permissions.autoAllowBashIfSandboxed`: the ergonomic unlock
+- `permissions.autoAllowBashIfSandboxed`
 - `sandbox.filesystem.allowWrite`: stops destructive local ops
 - `sandbox.filesystem.denyRead`: stops secret reads
 - `sandbox.network.allowedDomains`: stops data exfil / prompt injection from random hosts
@@ -311,8 +299,5 @@ Quick map of where each idea from this talk lives:
 
 ## Conclusion
 - No single layer is foolproof. **Swiss cheese model** of security: stack imperfect layers, hope the holes don't line up.
-- Sandbox (filesystem + network) is the load-bearing layer. Allow/deny lists are convenience on top.
-- Every layer adds friction. Start minimal, tighten when you hit something that actually matters to you.
-- Iterate. Your setup after 3 months of real use will be better than anything you write on day one.
-- Prioritize by attacker goal: credential / data exfiltration > mild local damage. Don't spend your budget on the wrong layer.
+- Iterate. It might take a while to get a good setup. Ask Claude to help you.
 
