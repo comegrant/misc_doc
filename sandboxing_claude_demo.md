@@ -3,19 +3,24 @@
 ## Disclaimer
 - This is my personal setup. I'm not sure it's the best.
 - Not all config examples have been thoroughly tested.
-- For legal reason, this is not security advice.
+- For legal reasons, this is not security advice.
 - You will have to customize this to your specific machine, your workflows and the tools you use, this might take a while.
 
-## Layers of Claude settings (TODO)
-- Global and project settings
-- How do different levels of settings interact
-- `settings.json` vs `settings.local.json`
-- Only talking about user settings in `~/.claude/settings.json`, `~/.claude/settings.local.json` or whatever the windows equivalent is. 
+## Claude Code settings files
+Claude Code merges settings from several files. Precedence, highest first:
+1. Enterprise-managed settings (not covered here)
+2. CLI args
+3. Project local: `<project>/.claude/settings.local.json` (git-ignored by default)
+4. Project shared: `<project>/.claude/settings.json` (committed)
+5. User global: `~/.claude/settings.json` and `~/.claude/settings.local.json`
 
-## Goal
-- Use Claude Code in a safer way
-- Simplify security & permission management
-- Make Claude Code more autonomous by reducing permission requests (for parallel work etc.)
+Rule of thumb:
+- `settings.json`: shareable config. Allow/deny lists, hooks, sandbox rules.
+- `settings.local.json`: personal or sensitive. Env vars with secrets, experimental tweaks. Git-ignored by default.
+- Project-level: team conventions for that repo.
+- User-level: your defaults across every project.
+
+This talk focuses on user-level settings in `~/.claude/settings.json` and `~/.claude/settings.local.json` (or the Windows equivalent).
 
 ## What's the risk?
 - Destructive operations on your local machine
@@ -23,10 +28,15 @@
 - Prompt injection
 - Data exfiltration
 
+## Goal
+- Use Claude Code in a safer way
+- Simplify security & permission management
+- Make Claude Code more autonomous by reducing permission requests (for parallel work etc.)
+
 ## Allow & Deny lists
 - Default way to control Claude permissions.
 - This is where stuff goes when you click "yes and don't ask again".
-- Mix of bash commands, tools (Read, WebFetch) and MPC commands (mcp__*)
+- Mix of bash commands, tools (Read, WebFetch) and MCP commands (mcp__*)
 - Example of deny & allow lists (yours is probably much bigger).
 ```json
 {
@@ -38,7 +48,7 @@
       "Bash(find:*)",
       "Bash(cat:*)",
       "Bash(grep:*)",
-      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "deny": [
       "Bash(rm -rf /*:*)",
@@ -47,29 +57,26 @@
   },
 ```
 
-## Why I don't like allow lists
-- You probably have >1000 commands on your computer, impossible to make a thorough allow / deny list.
-- If you click "yes, and don't ask again for ...", your settings get super messy and Claude Code eventually gets god powers on your machine.
-- Claude is not aware (by default) of what Bash commands and Tools are allowed. Even if your permission allow Claude to perform an operation with specific commands / syntax, it might choose a different way to write the command that will trigger a permission check. e.g: You allow `Bash(cat:*)` but Claude uses `$ less file.txt`.
-- Just too many permission checks.
+## Why I don't like Deny & Allow list for Bash
 
-## Why Deny lists aren't enough
-- Some basic operations (e.g: reading a file) can be done with many different commands. Making a deny list really easy to bypass.
-e.g: If you try to prevent Claude from reading a secret file by denying `Read(.env)`, Claude can still read the file with any of these commands:
+**Allow lists are too annoying**
+- You probably have 1000+ commands on your machine. Impossible to build a thorough list.
+- Clicking "yes, don't ask again" grows your settings into de-facto god-mode over time.
+- Claude doesn't know what's allow-listed. It might pick a different form of the same operation and trigger a prompt anyway (you allow `Bash(cat:*)`, Claude uses `less file.txt`).
+
+**Deny lists aren't secure:**
+- Too many ways to write effectively the same command.
+- Denying `Read(.env)` doesn't stop:
     - `$ cat .env`
     - `$ less .env`
-    - `$ nl .env`
-    - `$ more .env`
     - `$ head -n 9999 .env`
-    - `$ tail -n +1 .env`
     - `$ python -c "print(open('.env').read())"`
     - `$ cp .env out.txt && cat out.txt`
-- A Deny list is more of a "Please don't do this" than an actual lock. Good to have but not foolproof.
-- Still good to have to prevent stuff like force push to main, terraform destroy etc.
-- Hackers probably don't care about messing up your git history or infrastructure. The risk is more leaked credentials etc.
+- Still worth using for things like force-push to main, `terraform destroy`
+- Deny list is more of a "please don't do that", than a proper lock.
+- Hackers don't care about messing up your git history. Real risk is credential / data exfiltration.
 
-## Deny & Allowlist (conclusion)
-Don't trust regex to secure your machine?
+**Takeaway:** don't trust regex to secure your machine.
 *Insert Crowdstrike joke*
 
 ## The Alternative: Sandboxing
@@ -78,11 +85,15 @@ Don't trust regex to secure your machine?
 - Check https://code.claude.com/docs/en/sandboxing for installing and turning on sandbox.
 
 ## What does Sandboxing actually let us do
-- Filesystem isolation: Control what files & folders Claude has read & write access to
-- Network isolation: Control which domains Claude has access to
-- These are actually enforced, not regex-ing commands. They apply to all tools & commands.
-- `"autoAllowBashIfSandboxed"` Auto-allow bash commands if Claude is running in the sandbox
-- When a command is blocked by the Sandbox, Claude can retry with `dangerously-disable-sandbox`, which will prompt a permission request. I was worrying about Claude silently getting blocked by the sandbox, but it's been working well.
+- **Filesystem isolation**: control what files & folders Claude has read & write access to.
+- **Network isolation**: control which domains Claude has access to. i.e: Which websites Claude can read & send data to.
+- These are enforced at the OS level, not by pattern matching commands. They apply to all tools & commands.
+- When a command is blocked by the sandbox, Claude can retry with `dangerously-disable-sandbox`, which triggers a permission prompt. Don't worry about it getting silently stuck.
+
+## `autoAllowBashIfSandboxed`
+- This is the whole point.
+- If you manage security at the sandbox level, you can auto-allow any bash command.
+- Probably eliminates >90% of permission requests. 
 
 ## What do we actually want to control?
 - Destructive operations on your local machine
@@ -101,10 +112,10 @@ Default Write permissions:
 - Claude has write access in the current working directory and every sub-directory (i.e: wherever you're starting Claude Code from)
 
 Recommendation:
-- Use git, git is your undo button. Do not give Claude write access to folders which aren't version-controlled.
-- Use a whitelist for write access
+- Use git, git is your undo button. Be careful with giving Claude write access to folders which aren't version-controlled.
+- Use a whitelist for write access.
+- Pay attention to which folder you start Claude in. Add a blacklist if you're worried about accidentally starting Claude in a folder you don't want it edit.
 - Allow write access to the folder where you put your gitub repos, or working files
-- Be careful which folder you start Claude Code in.
 - You might have to give write access to folders used internally by tools (e.g: `"/Users/come.grant/.cache/gh"`)
 
 ```json
@@ -114,7 +125,7 @@ Recommendation:
       ],
 ```
 
-## Preventing Claude from reading secrets
+## Read acccess: Preventing Claude from reading secrets
 - Use a blacklist for read access
 - Deny read from files containing secrets and sensitive info.
 ```json
@@ -127,13 +138,13 @@ Recommendation:
         "/Users/come.grant/.databrickscfg",
         "/Users/come.grant/.zshrc",
         "/Users/come.grant/.bash_history",
-        "/Users/come.grant/Documents/cheffelo/**/.env",
-        "/Users/come.grant/Documents/cheffelo/**/.env.*",
-        "/Users/come.grant/Documents/cheffelo/**/*.pem",
-        "/Users/come.grant/Documents/cheffelo/**/*.key",
-        "/Users/come.grant/Documents/cheffelo/**/*.p12",
-        "/Users/come.grant/Documents/cheffelo/**/secrets/**",
-        "/Users/come.grant/Documents/cheffelo/**/credentials.json"
+        "/Users/come.grant/repos/cheffelo/**/.env",
+        "/Users/come.grant/repos/cheffelo/**/.env.*",
+        "/Users/come.grant/repos/cheffelo/**/*.pem",
+        "/Users/come.grant/repos/cheffelo/**/*.key",
+        "/Users/come.grant/repos/cheffelo/**/*.p12",
+        "/Users/come.grant/repos/cheffelo/**/secrets/**",
+        "/Users/come.grant/repos/cheffelo/**/credentials.json"
       ]
     }
   }
@@ -162,19 +173,21 @@ Note: Put secrets `settings.local.json` which is git ignored by default. Can use
 - There are better way to do secret management, but they get complicated.
 
 
-## Almost there!
-- Control what files Claude has write access to :white-checkmark:
-- Limit what secrets stuff Claude has access to. :white-checkmark:
-- Limit the permissions of Claude on CLI tools (Giving Claude a different user using env variables in your `settings.local.json` + deny list)
+## Part 1 done, now for the network
+- Control what files Claude has write access to ✅
+- Limit what secrets Claude has access to ✅
+- Limit Claude's permissions on CLI tools (different user via env vars in `settings.local.json` + deny list) ✅
 
 Next: Network Isolation
 - Controlling what data Claude has access to (prompt injection, don't trust random people on the internet)
 - Controlling where Claude can send data to (data exfiltration, aka: Prevent Claude from sending all your passwords to a random server out there)
 
 ## Network isolation
-- List of allowed hosts (supports glob patterns `:*`)
-- Unfortunately, can't have different lists from websites you trust to read from vs websites you trust to send data to.
-My allowed domain:
+- List of allowed hosts (supports glob patterns `:*`).
+- Applies to Claude's own network calls (Bash, WebFetch). **MCP tools bypass this** (more on that in the next slide).
+- Unfortunately, can't have different lists for "trust to read from" vs "trust to send data to". One list for both.
+
+My allowed domains:
 ```json
 "network": {
     "allowedDomains": [
@@ -202,34 +215,104 @@ Not too happy about having pypi.org in there, but I haven't found a way around i
 
 
 ## Some extra stuff in CLAUDE.md
-- Tell Claude not use command patterns that always trigger a permissions check like compound `cd && git` commands or backslash-escaped whitespace (use `cat "My Notes.md"` instead of  `cat My\ Notes.md`)
-
-- Guidance from your global CLAUDE.md: no compound cd && git commands, no
-backslash-escaped spaces (quote instead), prefer gh CLI over GitHub MCP, etc.
-  # ❌ PROMPTS — backslash-escaped whitespace trips the matcher
-  #    even though `cat` is fully allowed
-  cat My\ Notes.md
+Tell Claude to avoid command patterns that always trigger a permission check, even when the underlying command is allow-listed:
+- **Compound commands** like `cd foo && git status`. Do `cd foo` then `git status` on separate lines.
+- **Backslash-escaped whitespace**. Use `cat "My Notes.md"` instead of `cat My\ Notes.md`. The matcher doesn't unescape.
+- Generally: keep commands simple enough that the allowlist can recognize them.
 
 
 
 ## Auto mode (VERIFY)
 What stays enforced in auto mode
 
-- Sandbox — filesystem and network restrictions remain active at the OS
+- Sandbox: filesystem and network restrictions remain active at the OS
 level. Your read/write deny lists and allowed network hosts are not
 bypassed.
-- Deny rules — any explicitly denied tools or bash commands in your
+- Deny rules: any explicitly denied tools or bash commands in your
 settings are always respected, regardless of mode.
-- Narrow allow rules — specific allowlist entries like Bash(npm test) carry
+- Narrow allow rules: specific allowlist entries like Bash(npm test) carry
 over into auto mode.
 
 TODO: What's the rec between autoAllowBashIfSandboxed and Auto mode?
 -> Default to autoAllowBash, maybe try turning on auto mode selectively
 
-## Example config (clean up, go over and explain)
+## Example config: everything in one place
+Here's roughly what all of this looks like together. Two files: shareable config on the left, secrets on the right.
+
+`~/.claude/settings.json` (shareable):
+```json
+{
+  "permissions": {
+    "allow": [
+      "mcp__context7__*",
+      "Bash(git status:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:docs.anthropic.com)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*:*)",
+      "Bash(git push --force:*)",
+      "Bash(terraform destroy:*)"
+    ],
+    "autoAllowBashIfSandboxed": true
+  },
+  "sandbox": {
+    "filesystem": {
+      "allowWrite": [
+        "/Users/come.grant/repos/cheffelo"
+      ],
+      "denyRead": [
+        "/Users/come.grant/.ssh/",
+        "/Users/come.grant/.databrickscfg",
+        "/Users/come.grant/.zshrc",
+        "/Users/come.grant/.bash_history",
+        "/Users/come.grant/repos/cheffelo/**/.env",
+        "/Users/come.grant/repos/cheffelo/**/.env.*",
+        "/Users/come.grant/repos/cheffelo/**/*.pem",
+        "/Users/come.grant/repos/cheffelo/**/*.key",
+        "/Users/come.grant/repos/cheffelo/**/secrets/**",
+        "/Users/come.grant/repos/cheffelo/**/credentials.json"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "pypi.org",
+        "files.pythonhosted.org",
+        "api.linear.app",
+        "hub.getdbt.com",
+        "docs.databricks.com",
+        "code.claude.com",
+        "adb-xxxxxxxxx.azuredatabricks.net"
+      ]
+    }
+  }
+}
+```
+
+`~/.claude/settings.local.json` (git-ignored, secrets go here):
+```json
+{
+  "env": {
+    "DATABRICKS_HOST": "https://xxxxxxxx.azuredatabricks.net",
+    "DATABRICKS_CLIENT_ID": "sp-client-id-here",
+    "DATABRICKS_CLIENT_SECRET": "the-actual-secret"
+  }
+}
+```
+
+Quick map of where each idea from this talk lives:
+- `permissions.allow` / `permissions.deny`: allow & deny lists
+- `permissions.autoAllowBashIfSandboxed`: the ergonomic unlock
+- `sandbox.filesystem.allowWrite`: stops destructive local ops
+- `sandbox.filesystem.denyRead`: stops secret reads
+- `sandbox.network.allowedDomains`: stops data exfil / prompt injection from random hosts
+- `env` (in `settings.local.json`): Claude-specific credentials, different from your shell user
 
 
 ## Conclusion
-- hard to make a foolproof system
-- swiss cheese model of security.
+- No single layer is foolproof. **Swiss cheese model** of security: stack imperfect layers, hope the holes don't line up.
+- Sandbox (filesystem + network) is the load-bearing layer. Allow/deny lists are convenience on top.
+- Every layer adds friction. Start minimal, tighten when you hit something that actually matters to you.
+- Iterate. Your setup after 3 months of real use will be better than anything you write on day one.
+- Prioritize by attacker goal: credential / data exfiltration > mild local damage. Don't spend your budget on the wrong layer.
 
