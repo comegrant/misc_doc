@@ -1,3 +1,49 @@
+---
+marp: true
+theme: default
+paginate: true
+headingDivider: 2
+style: |
+  section {
+    font-size: 24px;
+    padding: 40px 50px;
+  }
+  h1 {
+    font-size: 2.2em;
+  }
+  h2 {
+    font-size: 1.5em;
+    margin-bottom: 0.4em;
+  }
+  pre {
+    font-size: 0.65em;
+    line-height: 1.3;
+    margin: 0.4em 0;
+  }
+  code {
+    font-size: 0.95em;
+  }
+  ul, ol {
+    margin: 0.3em 0;
+  }
+  li {
+    margin: 0.1em 0;
+    line-height: 1.35;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 1.2rem;
+    align-items: start;
+  }
+  .columns > div {
+    min-width: 0;
+  }
+  .columns pre {
+    font-size: 0.55em;
+  }
+---
+
 # Sandboxing Claude Code
 
 ## Disclaimer
@@ -57,14 +103,14 @@ This talk focuses on user-level settings in `~/.claude/settings.json` and `~/.cl
   },
 ```
 
-## Why I don't like Deny & Allow list for Bash
+## Allow lists are too annoying
 
-**Allow lists are too annoying**
 - You probably have 1000+ commands on your machine. Impossible to build a thorough list.
 - Clicking "yes, don't ask again" grows your settings into de-facto god-mode over time.
 - Claude doesn't know what's allow-listed. It might pick a different form of the same operation and trigger a prompt anyway (you allow `Bash(cat:*)`, Claude uses `less file.txt`).
 
-**Deny lists aren't secure:**
+## Deny lists aren't secure
+
 - Too many ways to write effectively the same command.
 - Denying `Read(.env)` doesn't stop:
     - `$ cat .env`
@@ -72,8 +118,8 @@ This talk focuses on user-level settings in `~/.claude/settings.json` and `~/.cl
     - `$ head -n 9999 .env`
     - `$ python -c "print(open('.env').read())"`
     - `$ cp .env out.txt && cat out.txt`
-- Still worth using for things like force-push to main, `terraform destroy`
-- Deny list is more of a "please don't do that", than a proper lock.
+- Still worth using for things like force-push to main, `terraform destroy`.
+- Deny list is more of a "please don't do that" than a proper lock.
 - Hackers don't care about messing up your git history. Real risk is credential / data exfiltration.
 
 **Takeaway:** don't trust regex to secure your machine.
@@ -99,7 +145,7 @@ This talk focuses on user-level settings in `~/.claude/settings.json` and `~/.cl
 - Destructive operations on your local machine
     -> What folders and files Claude has write access to
 - Destructive operations on remote services through CLI, MCPs etc 
-    -> What Claude can actually do on remote services (TODO: rephrase)
+    -> What Claude can actually do with CLIs etc.
 - Prompt injection
     -> Where Claude can receive data from
 - Data exfiltration
@@ -150,26 +196,26 @@ Recommendation:
 ```
 
 ## Keeping CLI tools working
-- All these files containing secrets are here for a reason, they are used by CLI tools
-- Denying read to config files containing secrets used by CLI tools might break them (e.g: the Databricks CLI needs read access to `"/Users/come.grant/.databrickscfg"`)
+- These files are here for a reason: CLI tools read them.
+- Denying them might break tools (e.g. Databricks CLI needs `/Users/come.grant/.databrickscfg`).
 
-As an alternative:
-- Use MCPs (more on why MCPs are generally more secure later)
-- Use the `"env"` block in your config. This passes environment variables specific to Claude Code.
-- Almost all CLI tools use CLI flags > env vars > config files.
-- So in this example, Claude uses the Databricks CLI with his specific env var, while my terminal uses the settings in `"/Users/come.grant/.databrickscfg"`
-Note: Put secrets `settings.local.json` which is git ignored by default. Can use project-level settings if the tools are project-specific.
+As an alternative, use MCPs (more on that later) or the `"env"` block in your settings:
+- Most CLI tools: CLI flags > env vars > config files.
+- Claude uses the Databricks CLI with its own env-var credentials, your terminal still uses the config file.
+- Put secrets in `settings.local.json` (git-ignored by default).
+
 ```json
 "env": {
     "DATABRICKS_HOST": "https://xxxxxxxx.azuredatabricks.net",
     "DATABRICKS_CLIENT_ID": "sp-client-id-here",
     "DATABRICKS_CLIENT_SECRET": "the-actual-secret"
-},
+}
 ```
 
-- This also lets you create a different user for Claude Code to use without affecting how you use the CLI.
-- Claude can still access secrets set as environment variables in your shell. Not foolproof.
-- There are better way to do secret management, but they get complicated.
+## CLI tools: caveats
+- This lets you create a different user for Claude Code without affecting your own CLI usage.
+- Claude can still access secrets set as env vars in your shell. Not foolproof.
+- Better secret management exists but gets complicated.
 
 
 ## Part 1 done, now for the network
@@ -225,10 +271,11 @@ Tell Claude to avoid command patterns that always trigger a permission check, ev
 New feature, haven't tried it yet.
 Idk how it compares to autoAllowBash
 
-## Example config:
-You'll have to customize this, but here's an example config just to show what goes where.
+## Example config: `~/.claude/settings.json`
 
-`~/.claude/settings.json`:
+<div class="columns">
+<div>
+
 ```json
 {
   "permissions": {
@@ -269,7 +316,6 @@ You'll have to customize this, but here's an example config just to show what go
         "files.pythonhosted.org",
         "api.linear.app",
         "hub.getdbt.com",
-        "docs.databricks.com",
         "code.claude.com",
         "adb-xxxxxxxxx.azuredatabricks.net"
       ]
@@ -278,7 +324,27 @@ You'll have to customize this, but here's an example config just to show what go
 }
 ```
 
-`~/.claude/settings.local.json` (git-ignored, secrets go here):
+</div>
+<div>
+
+**What each key does:**
+
+- `permissions.allow` / `deny`: allow & deny lists
+- `autoAllowBashIfSandboxed`: the ergonomic unlock
+- `sandbox.filesystem.allowWrite`: stops destructive local ops
+- `sandbox.filesystem.denyRead`: stops secret reads
+- `sandbox.network.allowedDomains`: stops data exfil / prompt injection from random hosts
+
+Secrets go in `settings.local.json` (next slide).
+
+</div>
+</div>
+
+## Example config: `~/.claude/settings.local.json`
+
+<div class="columns">
+<div>
+
 ```json
 {
   "env": {
@@ -289,12 +355,20 @@ You'll have to customize this, but here's an example config just to show what go
 }
 ```
 
-- `permissions.allow` / `permissions.deny`: allow & deny lists
-- `permissions.autoAllowBashIfSandboxed`
-- `sandbox.filesystem.allowWrite`: stops destructive local ops
-- `sandbox.filesystem.denyRead`: stops secret reads
-- `sandbox.network.allowedDomains`: stops data exfil / prompt injection from random hosts
-- `env` (in `settings.local.json`): Claude-specific credentials, different from your shell user
+</div>
+<div>
+
+**Why separate:**
+- `settings.json`: shareable config.
+- `settings.local.json`: personal / sensitive. Git-ignored by default.
+
+**`env` block:**
+- Passes env vars into Claude's shell specifically.
+- Lets you give Claude its own CLI credentials, different from your user.
+- Example: Claude uses these Databricks env vars while your terminal keeps using `~/.databrickscfg`.
+
+</div>
+</div>
 
 
 ## Conclusion
