@@ -188,3 +188,5 @@ You may use docker for local dev, but I wouldn't recommend it. `uv` maintaining 
 - Finish reserving names on PyPi, share ownership, yank (if convenient.)
 - Get rid of ODBC driver in data-contracts in favor of lakehouse-federation, or just use dbt models, add missing data to dbt models if needed.
 - Check if high-memory serverless is available in DABs now.
+
+## TODO: Explain the CI/CED. What's done on pr/merge in dev/test/prod by databricks/chef/terraform
