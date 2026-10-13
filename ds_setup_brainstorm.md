@@ -1,3 +1,4 @@
+**TODO** Elaborate
 General principles:
 - safe defaults
 - always have an escape hatch
@@ -85,6 +86,8 @@ Data Science infra is managed by an independent Terraform deployment to minimize
 ## Common Packages and Tooling
 
 **TODO**
+Why / when do we actually need custom packages?
+Makes sense to have some quality of life commands in chef for the dev X. But feels like a good idea to avoid unnecessary wrappers. Might be good to have a critical look at which internal packages are actually needed.
 
 
 # Current issues
@@ -130,9 +133,17 @@ With the exception of Container Instances, which are always deployed using a des
 
 ## Outdated & broken dependencies
 
-Many projects have dependencies which are several years old with multiple critical vulnerabilities (although unlikely to be exploitable in practice.) analytics-api has a broken dependency set which can not be resolved (it depends on preselector which declares another version of fastAPI.)
+Many projects have dependencies which are several years old with multiple critical vulnerabilities (although unlikely to be exploitable in practice.) Some projects have a broken dependency set which can not be resolved (for example, analytics-api depends on preselector which declares another version of fastAPI.)
+
+This would be a blocker for migrating existing projects to Databricks serverless compute.
+
+Automating patch updates would be a good idea.
 
 
+## Lack of testing
+
+Many projects have little to no tests. Changes to DS projects generally require manual QA. No drift detection...
+Lots of opportunities to improve on the MLOps front.
 
 
 ## Other issues
@@ -142,8 +153,14 @@ Many projects have dependencies which are several years old with multiple critic
 - Usage of admin keys for storage account access.
 
 
+# Ideas, fixes, etc
+
+
+## Migrate to Terraform
+
+Most infrastructure problems listed above are fixed simply by moving that infra to Terraform. The rest of them are much easier to fix once the infra has been moved to Terraform. 
 
 
 
-## Ideas, fixes, etc
+**TODO**
 move stuff to terraform, but what and in which order.
